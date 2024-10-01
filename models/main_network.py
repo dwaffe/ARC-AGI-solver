@@ -16,13 +16,25 @@ class MainNetwork(nn.Module):
         return x
 
     def load_parameters(self, generated_params):
+        if generated_params.dim() == 2:
+            # If generated_params has a batch dimension, use only the first set of parameters
+            generated_params = generated_params[0]
+        
         param_dict = dict(self.named_parameters())
         
         start = 0
         for name, param in param_dict.items():
             param_length = param.numel()
-            param.data = generated_params[start:start+param_length].view(param.size())
+            param_slice = generated_params[start:start+param_length]
+            
+            if param_slice.numel() != param_length:
+                raise ValueError(f"Parameter {name} expects {param_length} values, but got {param_slice.numel()}")
+            
+            param.data = param_slice.view(param.size())
             start += param_length
+        
+        if start != generated_params.numel():
+            raise ValueError(f"Not all generated parameters were used. Used {start} out of {generated_params.numel()}")
 
 class DynamicMainNetwork(nn.Module):
     def __init__(self):
